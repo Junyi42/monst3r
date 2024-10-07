@@ -6,14 +6,14 @@ This repository is the official implementation of the paper:
 
 [**MonST3R: A Simple Approach for Estimating Geometry in the Presence of Motion**](https://monst3r-project.github.io/files/monst3r_paper.pdf)
 [*Junyi Zhang*](https://junyi42.github.io/),
-[*Charles Herrmann*](https://scholar.google.com/citations?user=LQvi5XAAAAAJ),
+[*Charles Herrmann+*](https://scholar.google.com/citations?user=LQvi5XAAAAAJ),
 [*Junhwa Hur*](https://hurjunhwa.github.io/),
 [*Varun Jampani*](https://varunjampani.github.io/),
 [*Trevor Darrell*](https://people.eecs.berkeley.edu/~trevor/),
 [*Forrester Cole*](https://scholar.google.com/citations?user=xZRRr-IAAAAJ&hl),
-[*Deqing Sun*](https://deqings.github.io/),
-[*Ming-Hsuan Yang*](https://faculty.ucmerced.edu/mhyang/)
-Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Demo]**](https://monst3r-project.github.io/page1.html) [**[Video]**](https://monst3r-project.github.io/files/teaser_vid_v2_lowres.mp4)
+[*Deqing Sun**](https://deqings.github.io/),
+[*Ming-Hsuan Yang**](https://faculty.ucmerced.edu/mhyang/)
+Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]**](https://monst3r-project.github.io/files/monst3r_paper.pdf) [**[Video]**](https://monst3r-project.github.io/files/teaser_vid_v2_lowres.mp4) [**[Demo🔥]**](https://monst3r-project.github.io/page1.html) 
 
 ![teaser](assets/fig1_teaser.png)
 
