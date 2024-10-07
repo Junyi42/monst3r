@@ -18,7 +18,7 @@ Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]
 ![teaser](assets/fig1_teaser.png)
 
 ## TODO
-- [x] Release model weights at [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing)
+- [x] Release model weights on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing)
 - [ ] Release inference code for global optimization (est. time: 10/21)
 - [ ] Release 4D visualization code (est. time: 10/21)
 - [ ] Release evaluation code (est. time: 10/21)
@@ -26,15 +26,15 @@ Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]
 
 ## Getting Started
 
-We currently provide pre-trained model weights for MonST3R, which can be downloaded from [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing).
+We currently provide fine-tuned model weights for MonST3R, which can be downloaded on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing).
 
 
-The model weights can already be applied for **Two View input** using DUSt3R's inference code. To test the model, follow the instructions below:
+The model weights can already be applied for **Two-View input** using DUSt3R's inference code. To test the model, follow the instructions below:
 
 1. Install DUSt3R by following the instructions [here](https://github.com/naver/dust3r?tab=readme-ov-file#installation).
 2. Run `python3 demo.py --weights path/to/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth`.
 
-We will release the code for global optimization, 4D visualization, evaluation , and dataset preparation soon.
+We will soon release the code for global optimization, 4D visualization, evaluation, and dataset preparation.
 
 ## Citation
 
