@@ -1,4 +1,4 @@
-data/
+data/*/
 *checkpoints/
 checkpoints
 demo_tmp
