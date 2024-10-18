@@ -13,12 +13,12 @@ This repository is the official implementation of the paper:
 [*Forrester Cole*](https://scholar.google.com/citations?user=xZRRr-IAAAAJ&hl),
 [*Deqing Sun**](https://deqings.github.io/),
 [*Ming-Hsuan Yang**](https://faculty.ucmerced.edu/mhyang/)
-Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]**](https://monst3r-project.github.io/files/monst3r_paper.pdf) [**[Interative Results🔥]**](https://monst3r-project.github.io/page1.html) 
+Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]**](https://monst3r-project.github.io/files/monst3r_paper.pdf) [**[Interactive Results🔥]**](https://monst3r-project.github.io/page1.html) 
 
 [![Watch the video](assets/fig1_teaser.png)](https://monst3r-project.github.io/files/teaser_vid_v2_lowres.mp4)
 
 ## TODO
-- [x] Release model weights on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing)
+- [x] Release model weights on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing) and [Hugging Face](https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt)
 - [x] Release inference code for global optimization (10/18)
 - [x] Release 4D visualization code (10/18)
 - [ ] Release evaluation code (est. time: 10/21)
@@ -66,7 +66,7 @@ cd ../../../
 
 ### Download Checkpoints
 
-We currently provide fine-tuned model weights for MonST3R, which can be downloaded on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing) and [Hugging Face](https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt).
+We currently provide fine-tuned model weights for MonST3R, which can be downloaded on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing) or via [Hugging Face](https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt).
 
 
 To download the weights of MonST3R and optical flow models, run the following commands:
