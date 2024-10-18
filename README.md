@@ -15,10 +15,7 @@ This repository is the official implementation of the paper:
 [*Ming-Hsuan Yang**](https://faculty.ucmerced.edu/mhyang/)
 Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]**](https://monst3r-project.github.io/files/monst3r_paper.pdf) [**[Interative Results🔥]**](https://monst3r-project.github.io/page1.html) 
 
-<video controls>
-  <source src="https://monst3r-project.github.io/files/teaser_vid_v2_lowres.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![Watch the video](assets/fig1_teaser.png)](https://monst3r-project.github.io/files/teaser_vid_v2_lowres.mp4)
 
 ## TODO
 - [x] Release model weights on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing)
