@@ -1,0 +1,7 @@
+[submodule "croco"]
+	path = croco
+	url = https://github.com/junyi42/croco
+
+[submodule "viser"]
+	path = viser
+	url = https://github.com/junyi42/viser

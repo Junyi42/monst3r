@@ -1,0 +1,27 @@
+pillow-heif  # add heif/heic image support
+pyrender  # for rendering depths in scannetpp
+kapture  # for visloc data loading
+kapture-localization
+numpy-quaternion
+pycolmap  # for pnp
+poselib  # for pnp
+
+# for download tartanair
+boto3
+# for preprocess waymo
+tensorflow
+waymo-open-dataset-tf-2-12-0 --no-deps
+# need to change bytearray() to bytes() in waymo_open_dataset package
+
+# for training
+# for logging
+wandb
+tensorboard
+#for pointodyssey
+prettytable
+scikit-image
+scikit-learn
+h5py
+gdown
+# for scannet
+pypng
