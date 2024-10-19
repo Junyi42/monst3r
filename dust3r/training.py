@@ -91,7 +91,7 @@ def get_args_parser():
     parser.add_argument('--mode', default='train', type=str, help='train / eval_pose / eval_depth')
 
     # for pose eval
-    parser.add_argument('--pose_eval_freq', default=2, type=int, help='pose evaluation frequency')
+    parser.add_argument('--pose_eval_freq', default=0, type=int, help='pose evaluation frequency')
     parser.add_argument('--pose_eval_stride', default=1, type=int, help='stride for pose evaluation')
     parser.add_argument('--scene_graph_type', default='swinstride-5-noncyclic', type=str, help='scene graph window size')
     parser.add_argument('--save_best_pose', action='store_true', default=False, help='save best pose')

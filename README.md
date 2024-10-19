@@ -21,8 +21,8 @@ Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]
 - [x] Release model weights on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing) and [Hugging Face](https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt)
 - [x] Release inference code for global optimization (10/18)
 - [x] Release 4D visualization code (10/18)
+- [x] Release training code & dataset preparation (10/19)
 - [ ] Release evaluation code (est. time: 10/21)
-- [ ] Release training code & dataset preparation (est. time: 10/21)
 - [ ] Gradio Demo (est. time: 10/28)
 
 ## Getting Started
@@ -100,6 +100,23 @@ To visualize the interactive 4D results, you can use the following command:
 ```bash
 python viser/visualizer_monst3r.py --data demo_tmp/lady-running
 # to remove the floaters of foreground: --init_conf --fg_conf_thre 1.0 (thre can be adjusted)
+```
+
+### Training
+
+First, please refer to the [prepare_training.md](data/prepare_training.md) for preparing the pretrained models and training/evaluation datasets.
+
+Then, you can train the model using the following command:
+```bash
+CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 --master_port=29604 launch.py  --mode=train \
+    --train_dataset="10_000 @ PointOdysseyDUSt3R(dset='train', z_far=80, dataset_location='data/point_odyssey', S=2, aug_crop=16, resolution=[(512, 288), (512, 384), (512, 336)], transform=ColorJitter, strides=[1,2,3,4,5,6,7,8,9], dist_type='linear_1_2', aug_focal=0.9)+ 5_000 @ TarTanAirDUSt3R(dset='Hard', z_far=80, dataset_location='data/tartanair', S=2, aug_crop=16, resolution=[(512, 288), (512, 384), (512, 336)], transform=ColorJitter, strides=[1,2,3,4,5,6,7,8,9], dist_type='linear_1_2', aug_focal=0.9)+ 1_000 @ SpringDUSt3R(dset='train', z_far=80, dataset_location='data/spring', S=2, aug_crop=16, resolution=[(512, 288), (512, 384), (512, 336)], transform=ColorJitter, strides=[1,2,3,4,5,6,7,8,9], dist_type='linear_1_2', aug_focal=0.9)+ 4_000 @ Waymo(ROOT='data/waymo_processed', pairs_npz_name='waymo_pairs_video.npz', aug_crop=16, resolution=[(512, 288), (512, 384), (512, 336)], transform=ColorJitter, aug_focal=0.9)"   \
+    --test_dataset="1000 @ PointOdysseyDUSt3R(dset='test', z_far=80, dataset_location='data/point_odyssey', S=2, strides=[1,2,3,4,5,6,7,8,9], resolution=[(512, 288)], seed=777)+ 1000 @ SintelDUSt3R(dset='final', z_far=80, S=2, strides=[1,2,3,4,5,6,7,8,9], resolution=[(512, 224)], seed=777)"   \
+    --train_criterion="ConfLoss(Regr3D(L21, norm_mode='avg_dis'), alpha=0.2)"  \
+    --test_criterion="Regr3D_ScaleShiftInv(L21, gt_scale=True)"   \
+    --pretrained="checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"   \
+    --lr=0.00005 --min_lr=1e-06 --warmup_epochs=3 --epochs=50 --batch_size=4 --accum_iter=4  \
+    --save_freq=3 --keep_freq=5 --eval_freq=1  \
+    --output_dir="results/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt"
 ```
 
 ## Citation

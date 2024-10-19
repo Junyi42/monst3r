@@ -22,7 +22,7 @@ for path in tqdm(new_scenes):
 
 new_frames = list(frames)
 new_pairs = []
-strides = [2,3,4,5,6,7,8,9,10]
+strides = [1,2,3,4,5,6,7,8,9]
 step = 1
 for path in tqdm(new_scenes):
     imgs_track1 = glob.glob(path + "/*_1.jpg")
@@ -53,5 +53,5 @@ for path in tqdm(new_scenes):
                 new_pairs.append([new_scenes_last.index(path.split("/")[-2]), new_frames.index(imgs_track5[i].split('/')[-1].replace('.jpg','')), new_frames.index(imgs_track5[i+stride].split('/')[-1].replace('.jpg',''))])
 
 print(len(new_pairs), "pairs")
-save_path = "data/waymo_processed/waymo_pairs_video2_10.npz"
+save_path = "data/waymo_processed/waymo_pairs_video.npz"
 np.savez(save_path, scenes=np.array(new_scenes_last), frames=np.array(new_frames), pairs=np.array(new_pairs))
