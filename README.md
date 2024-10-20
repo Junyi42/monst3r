@@ -18,12 +18,12 @@ Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]
 [![Watch the video](assets/fig1_teaser.png)](https://monst3r-project.github.io/files/teaser_vid_v2_lowres.mp4)
 
 ## TODO
-- [x] Release model weights on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing) and [Hugging Face](https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt)
+- [x] Release model weights on [Google Drive](https://drive.google.com/file/d/1Z1jO_JmfZj0z3bgMvCwqfUhyZ1bIbc9E/view?usp=sharing) and [Hugging Face](https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt) (10/07)
 - [x] Release inference code for global optimization (10/18)
 - [x] Release 4D visualization code (10/18)
 - [x] Release training code & dataset preparation (10/19)
-- [ ] Release evaluation code (est. time: 10/21)
-- [ ] Gradio Demo (est. time: 10/28)
+- [x] Release evaluation code (10/20)
+- [ ] Gradio Demo
 
 ## Getting Started
 
@@ -102,9 +102,34 @@ python viser/visualizer_monst3r.py --data demo_tmp/lady-running
 # to remove the floaters of foreground: --init_conf --fg_conf_thre 1.0 (thre can be adjusted)
 ```
 
-### Training
+## Evaluation
 
-First, please refer to the [prepare_training.md](data/prepare_training.md) for preparing the pretrained models and training/evaluation datasets.
+We provide here an example of joint dense reconstruction and camera pose estimation on the **DAVIS** dataset. 
+
+First, download the dataset:
+```bash
+cd data; python download_davis.py; cd ..
+```
+
+Then, run the evaluation script:
+```bash
+CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 --master_port=29604 launch.py --mode=eval_pose  \
+    --pretrained="checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth"   \
+    --eval_dataset=davis --output_dir="results/davis_joint" 
+    # To use the ground truth dynamic mask, add: --use_gt_mask
+```
+
+You could then use the `viser` to visualize the results:
+```bash
+python viser/visualizer_monst3r.py --data results/davis_joint/bear
+```
+
+#### For the complete scripts to evaluate the camera pose / video depth / single-frame depth estimation on the **Sintel**, **Bonn**, **KITTI**, **NYU-v2**, **TUM-dynamics**, **ScanNet**, and **DAVIS** datasets. Please refer to the [evaluation_script.md](data/evaluation_script.md) for more details.
+
+
+## Training
+
+Please refer to the [prepare_training.md](data/prepare_training.md) for preparing the pretrained models and training/testing datasets.
 
 Then, you can train the model using the following command:
 ```bash

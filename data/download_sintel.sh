@@ -17,4 +17,3 @@ cd ..
 # conda activate monst3r
 # cd ..
 # python datasets_preprocess/sintel_get_dynamics.py --threshold 0.1 --save_dir dynamic_label_perfect
-# python datasets_preprocess/sintel_get_dynamics.py --continuous --save_dir dynamic_label_continuous

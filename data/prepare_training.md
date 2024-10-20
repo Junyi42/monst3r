@@ -3,7 +3,8 @@
 
 We provide scripts to prepare datasets for training, including **PointOdyssey**, **TartanAir**, **Spring**, and **Waymo**. For evaluation, we also provide a script for preparing the **Sintel** dataset.  
 
-*Please ensure you have obtained the necessary licenses from the original dataset providers before proceeding.*
+> [!NOTE]
+> The scripts provided here are for reference only. Please ensure you have obtained the necessary licenses from the original dataset providers before proceeding.
 
 ## Download Pre-Trained Models
 To download the pre-trained models, run the following commands:
