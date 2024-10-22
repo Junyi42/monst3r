@@ -116,7 +116,7 @@ def get_args_parser():
     parser.add_argument('--seq_list', nargs='+', default=None, help='list of sequences for pose evaluation')
 
     parser.add_argument('--eval_dataset', type=str, default='sintel', 
-                    choices=['davis', 'kitti', 'kitti_new', 'shibuya', 'bonn', 'bonn_new', 'scannet', 'tum', 'tum_new', 'nyu'], 
+                    choices=['davis', 'kitti', 'bonn', 'scannet', 'tum', 'nyu', 'sintel'], 
                     help='choose dataset for pose evaluation')
 
     # for monocular depth eval
