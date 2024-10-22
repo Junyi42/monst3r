@@ -327,7 +327,10 @@ if __name__ == '__main__':
 
     if args.input_dir is not None:
         # Process images in the input directory with default parameters
-        input_files = [os.path.join(args.input_dir, fname) for fname in sorted(os.listdir(args.input_dir))]
+        if os.path.isdir(args.input_dir):    # input_dir is a directory of images
+            input_files = [os.path.join(args.input_dir, fname) for fname in sorted(os.listdir(args.input_dir))]
+        else:   # input_dir is a video
+            input_files = [args.input_dir]
         recon_fun = functools.partial(get_reconstructed_scene, args, tmpdirname, model, args.device, args.silent, args.image_size)
         
         # Call the function with default parameters
