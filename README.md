@@ -116,12 +116,13 @@ Then, run the evaluation script:
 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 --master_port=29604 launch.py --mode=eval_pose  \
     --pretrained="checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth"   \
     --eval_dataset=davis --output_dir="results/davis_joint" 
-    # To use the ground truth dynamic mask, add: --use_gt_mask
+    # To use the ground truth dynamic mask for davis, add: --use_gt_mask
 ```
 
 You could then use the `viser` to visualize the results:
 ```bash
 python viser/visualizer_monst3r.py --data results/davis_joint/bear
+# if the dynamic mask is noisy, one could visualize per-frame pointcloud by adding: --no_mask
 ```
 
 #### For the complete scripts to evaluate the camera pose / video depth / single-frame depth estimation on the **Sintel**, **Bonn**, **KITTI**, **NYU-v2**, **TUM-dynamics**, **ScanNet**, and **DAVIS** datasets. Please refer to the [evaluation_script.md](data/evaluation_script.md) for more details.
