@@ -34,7 +34,8 @@ for dir in depth_dirs:
         new_path = new_depth_dir + "/" + depth_file.split("/")[-1]
         shutil.copy(depth_file, new_path)
         # get the path of the corresponding image
-        image_file = depth_file.replace('val','raw').replace('proj_depth/groundtruth/image_02', 'image_02/data')
+        mid = "_".join(depth_file.split("/")[4].split("_")[:3])
+        image_file = depth_file.replace('val', mid).replace('proj_depth/groundtruth/image_02', 'image_02/data')
         print(image_file)
         # check if the image file exists
         if os.path.exists(image_file):

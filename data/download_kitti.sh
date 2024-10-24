@@ -2,7 +2,7 @@
 mkdir -p kitti
 cd kitti
 wget https://s3.eu-central-1.amazonaws.com/avg-kitti/data_depth_selection.zip
-wget https://s3.eu-central-1.amazonaws.com/avg-kitti/data_scene_annotated.zip
+wget https://s3.eu-central-1.amazonaws.com/avg-kitti/data_depth_annotated.zip
 wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0002/2011_09_26_drive_0002_sync.zip
 wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0005/2011_09_26_drive_0005_sync.zip
 wget https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0013/2011_09_26_drive_0013_sync.zip
