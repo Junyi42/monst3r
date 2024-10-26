@@ -55,7 +55,7 @@ def convert_scene_output_to_glb(outdir, imgs, pts3d, mask, focals, cams2world, c
     scene.export(file_obj=outfile)
     return outfile
 
-def get_dynamic_mask_from_pairviewer(scene, flow_net=None, both_directions=False, output_dir='./demo_tmp'):
+def get_dynamic_mask_from_pairviewer(scene, flow_net=None, both_directions=False, output_dir='./demo_tmp', motion_mask_thre=0.35):
     """
     get the dynamic mask from the pairviewer
     """
@@ -108,7 +108,7 @@ def get_dynamic_mask_from_pairviewer(scene, flow_net=None, both_directions=False
         cv2.imwrite(f'{output_dir}/backward_flow.png', flow_img)
 
     cv2.imwrite(f'{output_dir}/dynamic_mask.png', cv2.applyColorMap(error_map_normalized_int, cv2.COLORMAP_JET))
-    error_map_normalized_bin = (error_map_normalized > 0.3).astype(np.uint8)
+    error_map_normalized_bin = (error_map_normalized > motion_mask_thre).astype(np.uint8)
     # save the binary mask
     cv2.imwrite(f'{output_dir}/dynamic_mask_binary.png', error_map_normalized_bin*255)
     # save the original one as npy file

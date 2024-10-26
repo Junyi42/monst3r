@@ -105,6 +105,7 @@ def get_args_parser():
     parser.add_argument('--flow_loss_weight', default=0.01, type=float, help='flow loss weight for pose optimization')
     parser.add_argument('--flow_loss_fn', default='smooth_l1', type=str, help='flow loss type for pose optimization')
     parser.add_argument('--use_gt_mask', action='store_true', default=False, help='use gt mask for pose optimization, for sintel/davis')
+    parser.add_argument('--motion_mask_thre', default=0.35, type=float, help='motion mask threshold for pose optimization')
     parser.add_argument('--sam2_mask_refine', action='store_true', default=False, help='use sam2 mask refine for the motion for pose optimization')
     parser.add_argument('--flow_loss_start_epoch', default=0.1, type=float, help='start epoch for flow loss')
     parser.add_argument('--flow_loss_thre', default=20, type=float, help='threshold for flow loss')

@@ -161,14 +161,15 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
 
     # if two images, and the shape is same, we can compute the dynamic mask
     if len(rgbimg) == 2 and rgbimg[0].shape == rgbimg[1].shape:
-        error_map = get_dynamic_mask_from_pairviewer(scene, both_directions=True, output_dir=args.output_dir)
+        motion_mask_thre = 0.35
+        error_map = get_dynamic_mask_from_pairviewer(scene, both_directions=True, output_dir=args.output_dir, motion_mask_thre=motion_mask_thre)
         # imgs.append(rgb(error_map))
         # apply threshold on the error map
         normalized_error_map = (error_map - error_map.min()) / (error_map.max() - error_map.min())
         error_map_max = normalized_error_map.max()
         error_map = cmap(normalized_error_map/error_map_max)
         imgs.append(rgb(error_map))
-        binary_error_map = (normalized_error_map > 0.3).astype(np.uint8)
+        binary_error_map = (normalized_error_map > motion_mask_thre).astype(np.uint8)
         imgs.append(rgb(binary_error_map*255))
 
     return scene, outfile, imgs
