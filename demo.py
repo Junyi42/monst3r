@@ -38,7 +38,7 @@ def get_args_parser():
                                                          "If None, will search for an available port starting at 7860."),
                         default=None)
     parser.add_argument("--weights", type=str, help="path to the model weights", default='checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth')
-    parser.add_argument("--model_name", type=str, default='Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth', help="model name")
+    parser.add_argument("--model_name", type=str, default='Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt', help="model name")
     parser.add_argument("--device", type=str, default='cuda', help="pytorch device")
     parser.add_argument("--output_dir", type=str, default='./demo_tmp', help="value for tempfile.tempdir")
     parser.add_argument("--silent", action='store_true', default=False,
