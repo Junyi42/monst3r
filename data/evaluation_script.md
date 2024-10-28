@@ -100,7 +100,7 @@ cd ..
 ```bash
 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 --master_port=29604 launch.py --mode=eval_pose  \
     --pretrained="checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth"   \
-    --eval_dataset=sintel --output_dir="results/sintel_video_depth" --full_seq
+    --eval_dataset=sintel --output_dir="results/sintel_video_depth" --full_seq --no_crop
 ```
 
 The results will be saved in the `results/sintel_video_depth` folder. You could then run the corresponding code block in [depth_metric.ipynb](../depth_metric.ipynb) to evaluate the results.
@@ -110,7 +110,7 @@ The results will be saved in the `results/sintel_video_depth` folder. You could 
 ```bash
 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 --master_port=29604 launch.py --mode=eval_pose  \
     --pretrained="checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth"   \
-    --eval_dataset=bonn --output_dir="results/bonn_video_depth"
+    --eval_dataset=bonn --output_dir="results/bonn_video_depth" --no_crop
 ```
 
 The results will be saved in the `results/bonn_video_depth` folder. You could then run the corresponding code block in [depth_metric.ipynb](../depth_metric.ipynb) to evaluate the results.
@@ -120,7 +120,7 @@ The results will be saved in the `results/bonn_video_depth` folder. You could th
 ```bash
 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 --master_port=29604 launch.py --mode=eval_pose  \
     --pretrained="checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth"   \
-    --eval_dataset=kitti --output_dir="results/kitti_video_depth"
+    --eval_dataset=kitti --output_dir="results/kitti_video_depth" --no_crop
 ```
 
 The results will be saved in the `results/kitti_video_depth` folder. You could then run the corresponding code block in [depth_metric.ipynb](../depth_metric.ipynb) to evaluate the results.
@@ -165,7 +165,7 @@ The evaluation results will be saved in `results/scannet_pose/_error_log.txt`.
 ```bash
 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 --master_port=29604 launch.py --mode=eval_depth  \
     --pretrained="checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth"   \
-    --eval_dataset=nyu --output_dir="results/nyuv2_depth"
+    --eval_dataset=nyu --output_dir="results/nyuv2_depth" --no_crop
 ```
 
 The results will be saved in the `results/nyuv2_depth` folder. You could then run the corresponding code block in [depth_metric.ipynb](../depth_metric.ipynb) to evaluate the results.
