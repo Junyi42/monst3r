@@ -1,5 +1,13 @@
 #!/bin/bash
 
+mkdir -p scannetv2
+cd scannetv2
+# download the sens http://kaldir.vc.in.tum.de/scannet/v2/scans/scene0707_00/scene0707_00.sens from scene0707_00 to scene0806_00
+for i in {707..806}; do
+    wget http://kaldir.vc.in.tum.de/scannet/v2/scans/scene0${i}_00/scene0${i}_00.sens
+done
+cd ../..
+
 # Set the number of threads
 THREADS=4
 
