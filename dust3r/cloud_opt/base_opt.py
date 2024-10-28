@@ -346,7 +346,7 @@ class BasePCOptimizer (nn.Module):
         return imgs
 
     def save_dynamic_masks(self, path):
-        dynamic_masks = self.dynamic_masks if self.sam2_dynamic_masks is None else self.sam2_dynamic_masks
+        dynamic_masks = self.dynamic_masks if getattr(self, 'sam2_dynamic_masks', None) is None else self.sam2_dynamic_masks
         for i, dynamic_mask in enumerate(dynamic_masks):
             cv2.imwrite(f'{path}/dynamic_mask_{i}.png', (dynamic_mask * 255).detach().cpu().numpy().astype(np.uint8))
         return dynamic_masks

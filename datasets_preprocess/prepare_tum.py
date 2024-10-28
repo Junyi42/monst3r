@@ -60,11 +60,10 @@ def associate(first_list, second_list, offset, max_difference):
 
 dirs = glob.glob("../data/tum/*/")
 dirs = sorted(dirs)
-frames = []
-gt = []
 # extract frames
 for dir in dirs:
-
+    frames = []
+    gt = []
     first_file = dir + 'rgb.txt'
     second_file = dir + 'groundtruth.txt'
 
