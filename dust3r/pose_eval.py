@@ -193,15 +193,20 @@ def eval_pose_estimation_dist(args, model, device, img_path, save_dir=None, mask
                 f.write(f'{rpe_trans:.5f}\n')
                 f.write(f'{rpe_rot:.5f}\n')
 
-        except RuntimeError as e:
+        except Exception as e:
             if 'out of memory' in str(e):
                 # Handle OOM
                 torch.cuda.empty_cache()  # Clear the CUDA memory
                 with open(error_log_path, 'a') as f:
                     f.write(f'OOM error in sequence {seq}, skipping this sequence.\n')
                 print(f'OOM error in sequence {seq}, skipping...')
+            elif 'Degenerate covariance rank' in str(e) or 'Eigenvalues did not converge' in str(e):
+                # Handle Degenerate covariance rank exception and Eigenvalues did not converge exception
+                with open(error_log_path, 'a') as f:
+                    f.write(f'Exception in sequence {seq}: {str(e)}\n')
+                print(f'Traj evaluation error in sequence {seq}, skipping.')
             else:
-                raise e  # Rethrow if it's not an OOM error
+                raise e  # Rethrow if it's not an expected exception
             
     # Aggregate results across all processes
     if misc.is_dist_avail_and_initialized():

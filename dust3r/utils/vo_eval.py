@@ -107,8 +107,7 @@ def load_traj(gt_traj_file, traj_format="sintel", skip=0, stride=1, num_frames=N
     elif traj_format in ["tum", "tartanair"]:
         traj = file_interface.read_tum_trajectory_file(gt_traj_file)
         xyz = traj.positions_xyz
-        # shift -1 column -> w in back column
-        quat = np.roll(traj.orientations_quat_wxyz, -1, axis=1)
+        quat = traj.orientations_quat_wxyz
         timestamps_mat = traj.timestamps
         traj_tum = np.column_stack((xyz, quat))
     else:
