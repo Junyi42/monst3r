@@ -120,7 +120,9 @@ The results will be saved in the `results/bonn_video_depth` folder. You could th
 ```bash
 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 --master_port=29604 launch.py --mode=eval_pose  \
     --pretrained="checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt.pth"   \
-    --eval_dataset=kitti --output_dir="results/kitti_video_depth" --no_crop
+    --eval_dataset=kitti --output_dir="results/kitti_video_depth_final2" --no_crop --flow_loss_weight 0 --translation_weight 1e-3
+# adjust flow loss weight and translation weight due to poor flow prediction result and large translation in KITTI
+# updated hyperparameters should give better results of Abs_Rel = 0.089; δ<1.25 = 91.11
 ```
 
 The results will be saved in the `results/kitti_video_depth` folder. You could then run the corresponding code block in [depth_metric.ipynb](../depth_metric.ipynb) to evaluate the results.
