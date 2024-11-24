@@ -60,7 +60,10 @@ def load_RAFT(model_path=None):
         args = parse_args(parser)
         net = RAFT2(args)
 
-    state_dict = torch.load(args.model)
+    if torch.cuda.is_available():
+        state_dict = torch.load(args.model)
+    else:
+        state_dict = torch.load(args.model, map_location="cpu")
     print('Loaded pretrained RAFT model from', args.model)
     new_state_dict = {}
     for k in state_dict:
