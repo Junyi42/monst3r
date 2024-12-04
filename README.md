@@ -34,8 +34,7 @@ Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]
 git clone --recursive https://github.com/junyi42/monst3r
 cd monst3r
 ## if you have already cloned monst3r:
-# git clone https://github.com/junyi42/viser viser
-# git clone https://github.com/junyi42/croco croco
+# git submodule update --init --recursive
 ```
 
 2. Create the environment, here we show an example using conda.
