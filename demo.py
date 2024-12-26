@@ -46,6 +46,7 @@ def get_args_parser():
     parser.add_argument("--input_dir", type=str, help="Path to input images directory", default=None)
     parser.add_argument("--seq_name", type=str, help="Sequence name for evaluation", default='NULL')
     parser.add_argument('--use_gt_davis_masks', action='store_true', default=False, help='Use ground truth masks for DAVIS')
+    parser.add_argument('--not_batchify', action='store_true', default=False, help='Use non batchify mode for global optimization')
     parser.add_argument('--fps', type=int, default=0, help='FPS for video processing')
     parser.add_argument('--num_frames', type=int, default=200, help='Maximum number of frames for video processing')
     
@@ -114,7 +115,7 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
         mode = GlobalAlignerMode.PointCloudOptimizer  
         scene = global_aligner(output, device=device, mode=mode, verbose=not silent, shared_focal = shared_focal, temporal_smoothing_weight=temporal_smoothing_weight, translation_weight=translation_weight,
                                flow_loss_weight=flow_loss_weight, flow_loss_start_epoch=flow_loss_start_iter, flow_loss_thre=flow_loss_threshold, use_self_mask=not use_gt_mask,
-                               num_total_iter=niter, empty_cache= len(filelist) > 72)
+                               num_total_iter=niter, empty_cache= len(filelist) > 72, batchify=not args.not_batchify)
     else:
         mode = GlobalAlignerMode.PairViewer
         scene = global_aligner(output, device=device, mode=mode, verbose=not silent)
@@ -177,7 +178,7 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
 
 def set_scenegraph_options(inputfiles, winsize, refid, scenegraph_type):
     # if inputfiles[0] is a video, set the num_files to 200
-    if inputfiles is not None and len(inputfiles) == 1 and inputfiles[0].name.endswith(('.mp4', '.avi', '.mov')):
+    if inputfiles is not None and len(inputfiles) == 1 and inputfiles[0].name.endswith(('.mp4', '.avi', '.mov', '.MP4', '.AVI', '.MOV')):
         num_files = 200
     else:
         num_files = len(inputfiles) if inputfiles is not None else 1
@@ -203,10 +204,10 @@ def set_scenegraph_options(inputfiles, winsize, refid, scenegraph_type):
 def main_demo(tmpdirname, model, device, image_size, server_name, server_port, silent=False, args=None):
     recon_fun = functools.partial(get_reconstructed_scene, args, tmpdirname, model, device, silent, image_size)
     model_from_scene_fun = functools.partial(get_3D_model_from_scene, tmpdirname, silent)
-    with gradio.Blocks(css=""".gradio-container {margin: 0 !important; min-width: 100%};""", title="DUSt3R Demo") as demo:
+    with gradio.Blocks(css=""".gradio-container {margin: 0 !important; min-width: 100%};""", title="MonST3R Demo") as demo:
         # scene state is save so that you can change conf_thr, cam_size... without rerunning the inference
         scene = gradio.State(None)
-        gradio.HTML(f'<h2 style="text-align: center;">DUSt3R Demo</h2>')
+        gradio.HTML(f'<h2 style="text-align: center;">MonST3R Demo</h2>')
         with gradio.Column():
             inputfiles = gradio.File(file_count="multiple")
             with gradio.Row():
@@ -321,7 +322,7 @@ if __name__ == '__main__':
     model = AsymmetricCroCo3DStereo.from_pretrained(weights_path).to(args.device)
 
     # Use the provided output_dir or create a temporary directory
-    tmpdirname = args.output_dir if args.output_dir is not None else tempfile.mkdtemp(suffix='dust3r_gradio_demo')
+    tmpdirname = args.output_dir if args.output_dir is not None else tempfile.mkdtemp(suffix='monst3r_gradio_demo')
 
     if not args.silent:
         print('Outputting stuff in', tmpdirname)
