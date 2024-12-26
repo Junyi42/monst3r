@@ -96,8 +96,7 @@ python demo.py --input demo_data/lady-running --output_dir demo_tmp --seq_name l
 ```
 
 
-> **Update (12/15):** Using the non-batchified version of the global optimization, the memory usage has been significantly reduced. Now, it only requires approximately 23G VRAM to run the inference code on a 16:9 video consisting of 65 frames.
-
+> **Update (12/15):** Using the non-batchified version of the global optimization, the memory usage has been reduced. Now, it only requires ~23G VRAM to inference on a 65-frames 16:9 video. It is now slower, but we are **welcome to any PRs** to improve the memory-speed trade-off, e.g., using a window-wise optimization in function `forward_non_batchify()` instead of edge-wise.
 
 > Currently, it takes about 33G VRAM to run the inference code on a 16:9 video of 65 frames. Use less frames or disable the `flow_loss` could reduce the memory usage. We are **welcome to any PRs** to improve the memory efficiency (one reasonable way is to implement window-wise optimzation in `optimizer.py`).
 
