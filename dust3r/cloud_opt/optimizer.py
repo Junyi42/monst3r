@@ -35,7 +35,7 @@ class PointCloudOptimizer(BasePCOptimizer):
 
     def __init__(self, *args, optimize_pp=False, focal_break=20, shared_focal=False, flow_loss_fn='smooth_l1', flow_loss_weight=0.0, 
                  depth_regularize_weight=0.0, num_total_iter=300, temporal_smoothing_weight=0, translation_weight=0.1, flow_loss_start_epoch=0.15, flow_loss_thre=50,
-                 sintel_ckpt=False, use_self_mask=False, pxl_thre=50, sam2_mask_refine=True, motion_mask_thre=0.35, **kwargs):
+                 sintel_ckpt=False, use_self_mask=False, pxl_thre=50, sam2_mask_refine=True, motion_mask_thre=0.35, batchify=True, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.has_im_poses = True  # by definition of this class
@@ -49,6 +49,7 @@ class PointCloudOptimizer(BasePCOptimizer):
         self.optimize_pp = optimize_pp
         self.pxl_thre = pxl_thre
         self.motion_mask_thre = motion_mask_thre
+        self.batchify = batchify
 
         # adding thing to optimize
         self.im_depthmaps = nn.ParameterList(torch.randn(H, W)/10-3 for H, W in self.imshapes)  # log(depth)
@@ -68,24 +69,23 @@ class PointCloudOptimizer(BasePCOptimizer):
         self.max_area = max(im_areas)
 
         # adding thing to optimize
-        self.im_depthmaps = ParameterStack(self.im_depthmaps, is_param=True, fill=self.max_area) #(num_imgs, H*W)
-
-        self.im_poses = ParameterStack(self.im_poses, is_param=True)
-        self.im_focals = ParameterStack(self.im_focals, is_param=True)
-        self.im_pp = ParameterStack(self.im_pp, is_param=True)
-        self.register_buffer('_pp', torch.tensor([(w/2, h/2) for h, w in self.imshapes]))
-        self.register_buffer('_grid', ParameterStack(
-            [xy_grid(W, H, device=self.device) for H, W in self.imshapes], fill=self.max_area))
-
-        # pre-compute pixel weights
-        self.register_buffer('_weight_i', ParameterStack(
-            [self.conf_trf(self.conf_i[i_j]) for i_j in self.str_edges], fill=self.max_area))
-        self.register_buffer('_weight_j', ParameterStack(
-            [self.conf_trf(self.conf_j[i_j]) for i_j in self.str_edges], fill=self.max_area))
-
-        # precompute aa
-        self.register_buffer('_stacked_pred_i', ParameterStack(self.pred_i, self.str_edges, fill=self.max_area))
-        self.register_buffer('_stacked_pred_j', ParameterStack(self.pred_j, self.str_edges, fill=self.max_area))
+        if self.batchify:
+            self.im_depthmaps = ParameterStack(self.im_depthmaps, is_param=True, fill=self.max_area) #(num_imgs, H*W)
+            self.im_poses = ParameterStack(self.im_poses, is_param=True)
+            self.im_focals = ParameterStack(self.im_focals, is_param=True)
+            self.im_pp = ParameterStack(self.im_pp, is_param=True)
+            self.register_buffer('_pp', torch.tensor([(w/2, h/2) for h, w in self.imshapes]))
+            self.register_buffer('_grid', ParameterStack(
+                [xy_grid(W, H, device=self.device) for H, W in self.imshapes], fill=self.max_area))
+            # pre-compute pixel weights
+            self.register_buffer('_weight_i', ParameterStack(
+                [self.conf_trf(self.conf_i[i_j]) for i_j in self.str_edges], fill=self.max_area))
+            self.register_buffer('_weight_j', ParameterStack(
+                [self.conf_trf(self.conf_j[i_j]) for i_j in self.str_edges], fill=self.max_area))
+            # precompute aa
+            self.register_buffer('_stacked_pred_i', ParameterStack(self.pred_i, self.str_edges, fill=self.max_area))
+            self.register_buffer('_stacked_pred_j', ParameterStack(self.pred_j, self.str_edges, fill=self.max_area))
+            
         self.register_buffer('_ei', torch.tensor([i for i, j in self.edges]))
         self.register_buffer('_ej', torch.tensor([j for i, j in self.edges]))
         self.total_area_i = sum([im_areas[i] for i, j in self.edges])
@@ -401,8 +401,17 @@ class PointCloudOptimizer(BasePCOptimizer):
             param.data[:] = to_cpu(to_numpy(pp) - (W/2, H/2)) / 10
         return param
 
-    def get_principal_points(self):
+    def get_principal_points_non_batch(self):
+        return torch.stack([pp.new((W/2, H/2))+10*pp for pp, (H, W) in zip(self.im_pp, self.imshapes)])
+
+    def get_principal_points_batch(self):
         return self._pp + 10 * self.im_pp
+
+    def get_principal_points(self):
+        if self.batchify:
+            return self.get_principal_points_batch()
+        else:
+            return self.get_principal_points_non_batch()
 
     def get_intrinsics(self):
         K = torch.zeros((self.n_imgs, 3, 3), device=self.device)
@@ -412,17 +421,39 @@ class PointCloudOptimizer(BasePCOptimizer):
         K[:, 2, 2] = 1
         return K
 
-    def get_im_poses(self):  # cam to world
+    def get_im_poses_batch(self):  # cam to world
         cam2world = self._get_poses(self.im_poses)
         return cam2world
 
-    def _set_depthmap(self, idx, depth, force=False):
+    def get_im_poses_non_batch(self):  # cam to world
+        cam2world = self._get_poses(torch.stack(list(self.im_poses)))
+        return cam2world
+
+    def get_im_poses(self):
+        if self.batchify:
+            return self.get_im_poses_batch()
+        else:
+            return self.get_im_poses_non_batch()
+
+    def _set_depthmap_batch(self, idx, depth, force=False):
         depth = _ravel_hw(depth, self.max_area)
 
         param = self.im_depthmaps[idx]
         if param.requires_grad or force:  # can only init a parameter not already initialized
             param.data[:] = depth.log().nan_to_num(neginf=0)
         return param
+
+    def _set_depthmap_non_batch(self, idx, depth, force=False):
+        param = self.im_depthmaps[idx]
+        if param.requires_grad or force:  # can only init a parameter not already initialized
+            param.data[:] = depth.log().nan_to_num(neginf=0)
+        return param
+
+    def _set_depthmap(self, idx, depth, force=False):
+        if self.batchify:
+            return self._set_depthmap_batch(idx, depth, force)
+        else:
+            return self._set_depthmap_non_batch(idx, depth, force)
     
     def preset_depthmap(self, known_depthmaps, msk=None, requires_grad=False):
         self._check_all_imgs_are_selected(msk)
@@ -448,11 +479,20 @@ class PointCloudOptimizer(BasePCOptimizer):
             res = [dm[:h*w].view(h, w) for dm, (h, w) in zip(res, self.imshapes)]
         return res
 
-    def get_depthmaps(self, raw=False):
+    def get_depthmaps_batch(self, raw=False):
         res = self.im_depthmaps.exp()
         if not raw:
             res = [dm[:h*w].view(h, w) for dm, (h, w) in zip(res, self.imshapes)]
         return res
+
+    def get_depthmaps_non_batch(self):
+        return [d.exp() for d in self.im_depthmaps]
+
+    def get_depthmaps(self, raw=False):
+        if self.batchify:
+            return self.get_depthmaps_batch(raw)
+        else:
+            return self.get_depthmaps_non_batch()
 
     def depth_to_pts3d(self):
         # Get depths and  projection params if not provided
@@ -480,13 +520,19 @@ class PointCloudOptimizer(BasePCOptimizer):
         # project to world frame
         return [geotrf(pose, ptmap) for pose, ptmap in zip(im_poses, rel_ptmaps)]
     
-    def get_pts3d(self, raw=False, **kwargs):
+    def get_pts3d_batch(self, raw=False, **kwargs):
         res = self.depth_to_pts3d()
         if not raw:
             res = [dm[:h*w].view(h, w, 3) for dm, (h, w) in zip(res, self.imshapes)]
         return res
 
-    def forward(self, epoch=9999):
+    def get_pts3d(self, raw=False, **kwargs):
+        if self.batchify:
+            return self.get_pts3d_batch(raw, **kwargs)
+        else:
+            return self.depth_to_pts3d_partial()
+
+    def forward_batchify(self, epoch=9999):
         pw_poses = self.get_pw_poses()  # cam-to-world
 
         pw_adapt = self.get_adaptors().unsqueeze(1)
@@ -544,6 +590,128 @@ class PointCloudOptimizer(BasePCOptimizer):
                 self.flow_loss_weight * flow_loss + self.depth_regularize_weight * depth_prior_loss
 
         return loss
+    
+    def forward_non_batchify(self, epoch=9999):
+
+        # --(1) Perform the original pairwise 3D consistency loss (pairwise 3D consistency)--
+        pw_poses = self.get_pw_poses()  # pair-wise poses (or adaptive poses)
+        pw_adapt = self.get_adaptors()
+        proj_pts3d = self.get_pts3d()   # 3D point clouds for each image
+        weight_i = {i_j: self.conf_trf(c) for i_j, c in self.conf_i.items()}
+        weight_j = {i_j: self.conf_trf(c) for i_j, c in self.conf_j.items()}
+
+        loss = 0.0
+        for e, (i, j) in enumerate(self.edges):
+            i_j = edge_str(i, j)
+            # Transform the pairwise predictions to the world coordinate system
+            aligned_pred_i = geotrf(pw_poses[e], pw_adapt[e] * self.pred_i[i_j])
+            aligned_pred_j = geotrf(pw_poses[e], pw_adapt[e] * self.pred_j[i_j])
+            # Compute the distance loss between the projected point clouds and the predictions
+            li = self.dist(proj_pts3d[i], aligned_pred_i, weight=weight_i[i_j]).mean()
+            lj = self.dist(proj_pts3d[j], aligned_pred_j, weight=weight_j[i_j]).mean()
+            loss += (li + lj)
+
+        # Average the loss
+        loss /= self.n_edges
+
+        # --(2) Add temporal smoothing constraint between adjacent frames (temporal smoothing)--
+        temporal_smoothing_loss = 0.0
+        if self.temporal_smoothing_weight > 0:
+            # Get the global poses (4x4) for all images
+            im_poses = self.get_im_poses()  # shape: (n_imgs, 4, 4)
+            # Stack the relative poses between adjacent frames and use the existing relative_pose_loss function
+            rel_RT1, rel_RT2 = [], []
+            for idx in range(self.n_imgs - 1):
+                rel_RT1.append(im_poses[idx])
+                rel_RT2.append(im_poses[idx + 1])
+            if len(rel_RT1) > 0:
+                rel_RT1 = torch.stack(rel_RT1, dim=0)  # shape: (n_imgs-1, 4, 4)
+                rel_RT2 = torch.stack(rel_RT2, dim=0)
+                # Compute the pose difference between adjacent frames
+                temporal_smoothing_loss = self.relative_pose_loss(rel_RT1, rel_RT2).sum()
+                loss += self.temporal_smoothing_weight * temporal_smoothing_loss
+
+        # --(3) Add flow constraint (flow_loss), similar to forward_batchify--
+        flow_loss = 0.0
+        if self.flow_loss_weight > 0 and epoch >= self.num_total_iter * self.flow_loss_start_epoch:
+            # Iterate through each pair of images and compute the depth map and flow comparison
+            im_poses = self.get_im_poses()   # (n_imgs, 4, 4)
+            K_all = self.get_intrinsics()    # (n_imgs, 3, 3)
+            inv_K_all = torch.linalg.inv(K_all)
+            depthmaps = self.get_depthmaps(raw=False)  # list of depth maps (H, W)
+
+            for e, (i, j) in enumerate(self.edges):
+                # Get the rotation, translation, and intrinsics for the two frames
+                R1 = im_poses[i][:3, :3].unsqueeze(0)  # shape: (1, 3, 3)
+                T1 = im_poses[i][:3, 3].unsqueeze(-1).unsqueeze(0)  # (1, 3, 1)
+                R2 = im_poses[j][:3, :3].unsqueeze(0)
+                T2 = im_poses[j][:3, 3].unsqueeze(-1).unsqueeze(0)
+                K1 = K_all[i].unsqueeze(0)     # (1, 3, 3)
+                K2 = K_all[j].unsqueeze(0)
+                inv_K1 = inv_K_all[i].unsqueeze(0)
+                inv_K2 = inv_K_all[j].unsqueeze(0)
+
+                # Construct disparity: disp = 1/depth
+                depth1 = depthmaps[i].unsqueeze(0).unsqueeze(1)  # (1, 1, H, W)
+                depth2 = depthmaps[j].unsqueeze(0).unsqueeze(1)
+                disp_1 = 1.0 / (depth1 + 1e-6)
+                disp_2 = 1.0 / (depth2 + 1e-6)
+
+                # Compute "ego-motion flow" by projecting using DepthBasedWarping
+                # Note that DepthBasedWarping expects batch dimension, so add unsqueeze(0)
+                ego_flow_1_2, _ = self.depth_wrapper(R1, T1, R2, T2, disp_1, K2, inv_K1)
+                ego_flow_2_1, _ = self.depth_wrapper(R2, T2, R1, T1, disp_2, K1, inv_K2)
+
+                # Get the corresponding dynamic region masks (if any)
+                dynamic_mask_i = self.dynamic_masks[i]  # shape: (H, W)
+                dynamic_mask_j = self.dynamic_masks[j]
+
+                # When computing flow loss, exclude or ignore dynamic regions
+                flow_loss_i = self.flow_loss_fn(
+                    ego_flow_1_2[0, :2, ...],   # shape: (2, H, W)
+                    self.flow_ij[e],           # shape: (2, H, W),  i->j
+                    ~dynamic_mask_i,           # mask: True = keep, False = ignore
+                    per_pixel_thre=self.pxl_thre
+                )
+                flow_loss_j = self.flow_loss_fn(
+                    ego_flow_2_1[0, :2, ...],
+                    self.flow_ji[e],           # j->i
+                    ~dynamic_mask_j,
+                    per_pixel_thre=self.pxl_thre
+                )
+                flow_loss += (flow_loss_i + flow_loss_j)
+
+            # Optional: handle cases where the flow loss is too large (e.g., early stop)
+            # divide by the number of edges
+            flow_loss /= self.n_edges
+            print(f'flow loss: {flow_loss.item()}')
+            if flow_loss.item() > self.flow_loss_thre and self.flow_loss_thre > 0:
+                flow_loss = 0.0
+
+            loss += self.flow_loss_weight * flow_loss
+
+        # --(4) Add depth regularization (depth_prior_loss) to constrain the initial depth--
+        if self.depth_regularize_weight > 0:
+            init_depthmaps = self.get_init_depthmaps(raw=False)  # initial depth maps
+            current_depthmaps = self.get_depthmaps(raw=False)     # current optimized depth maps
+            depth_prior_loss = 0.0
+            for i in range(self.n_imgs):
+                # Apply constraints on static regions (ignore dynamic regions)
+                # Make sure the shape has the batch dimension (B,1,H,W)
+                depth_prior_loss += self.depth_regularizer(
+                    current_depthmaps[i].unsqueeze(0).unsqueeze(1),
+                    init_depthmaps[i].unsqueeze(0).unsqueeze(1),
+                    self.dynamic_masks[i].unsqueeze(0).unsqueeze(1)
+                )
+            loss += self.depth_regularize_weight * depth_prior_loss
+
+        return loss
+
+    def forward(self, epoch=9999):
+        if self.batchify:
+            return self.forward_batchify(epoch)
+        else:
+            return self.forward_non_batchify(epoch)
 
     def relative_pose_loss(self, RT1, RT2):
         relative_RT = torch.matmul(torch.inverse(RT1), RT2)

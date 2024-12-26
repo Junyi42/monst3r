@@ -23,6 +23,8 @@ Arxiv, 2024. [**[Project Page]**](https://monst3r-project.github.io/) [**[Paper]
 - [x] Release 4D visualization code (10/18)
 - [x] Release training code & dataset preparation (10/19)
 - [x] Release evaluation code (10/20)
+- [x] Memory efficient optimization v1 (12/25): a non-batchified version of the global optimization, slower but less memory usage
+- [ ] Real-time reconstruction mode
 - [ ] Gradio Demo
 
 ## Getting Started
@@ -81,6 +83,7 @@ cd ..
 To run the inference code, you can use the following command:
 ```bash
 python demo.py # launch GUI, input can be a folder or a video
+# use memory efficient optimization: --not_batchify
 ```
 
 The results will be saved in the `demo_tmp/{Sequence Name}` (by default is `demo_tmp/NULL`) folder for future visualization.
@@ -89,7 +92,12 @@ You can also run the inference code in a non-interactive mode:
 ```bash
 python demo.py --input demo_data/lady-running --output_dir demo_tmp --seq_name lady-running
 # use video as input: --input demo_data/lady-running.mp4 --num_frames 65
+# use memory efficient optimization: --not_batchify
 ```
+
+
+> **Update (12/15):** Using the non-batchified version of the global optimization, the memory usage has been significantly reduced. Now, it only requires approximately 23G VRAM to run the inference code on a 16:9 video consisting of 65 frames.
+
 
 > Currently, it takes about 33G VRAM to run the inference code on a 16:9 video of 65 frames. Use less frames or disable the `flow_loss` could reduce the memory usage. We are **welcome to any PRs** to improve the memory efficiency (one reasonable way is to implement window-wise optimzation in `optimizer.py`).
 
