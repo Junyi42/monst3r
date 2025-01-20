@@ -20,11 +20,10 @@ from dust3r.utils.device import to_numpy
 from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
 from dust3r.utils.viz_demo import convert_scene_output_to_glb, get_dynamic_mask_from_pairviewer
 import matplotlib.pyplot as pl
+import cv2
 
 pl.ion()
-
 torch.backends.cuda.matmul.allow_tf32 = True  # for gpu >= Ampere and pytorch >= 1.12
-batch_size = 1
 
 
 def get_args_parser():
@@ -47,6 +46,9 @@ def get_args_parser():
     parser.add_argument("--seq_name", type=str, help="Sequence name for evaluation", default='NULL')
     parser.add_argument('--use_gt_davis_masks', action='store_true', default=False, help='Use ground truth masks for DAVIS')
     parser.add_argument('--not_batchify', action='store_true', default=False, help='Use non batchify mode for global optimization')
+    parser.add_argument('--real_time', action='store_true', default=False, help='Realtime mode')
+    parser.add_argument('--batch_size', type=int, default=16, help='Batch size for inference')
+
     parser.add_argument('--fps', type=int, default=0, help='FPS for video processing')
     parser.add_argument('--num_frames', type=int, default=200, help='Maximum number of frames for video processing')
     
@@ -110,7 +112,7 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
         scenegraph_type = scenegraph_type + "-" + str(refid)
 
     pairs = make_pairs(imgs, scene_graph=scenegraph_type, prefilter=None, symmetrize=True)
-    output = inference(pairs, model, device, batch_size=batch_size, verbose=not silent)
+    output = inference(pairs, model, device, batch_size=args.batch_size, verbose=not silent)
     if len(imgs) > 2:
         mode = GlobalAlignerMode.PointCloudOptimizer  
         scene = global_aligner(output, device=device, mode=mode, verbose=not silent, shared_focal = shared_focal, temporal_smoothing_weight=temporal_smoothing_weight, translation_weight=translation_weight,
@@ -199,6 +201,56 @@ def set_scenegraph_options(inputfiles, winsize, refid, scenegraph_type):
         refid = gradio.Slider(label="Scene Graph: Id", value=0, minimum=0,
                               maximum=num_files-1, step=1, visible=False)
     return winsize, refid
+
+
+def get_reconstructed_scene_realtime(args, model, device, silent, image_size, filelist, scenegraph_type, refid, seq_name, fps, num_frames):
+    """
+    from a list of images, run dust3r inference, global aligner.
+    then run get_3D_model_from_scene
+    """
+    model.eval()
+    imgs = load_images(filelist, size=image_size, verbose=not silent, fps=fps, num_frames=num_frames)
+    if len(imgs) == 1:
+        imgs = [imgs[0], copy.deepcopy(imgs[0])]
+        imgs[1]['idx'] = 1
+    
+    if scenegraph_type == "oneref":
+        scenegraph_type = scenegraph_type + "-" + str(refid)
+    elif scenegraph_type == "oneref_mid":
+        scenegraph_type = "oneref-" + str(len(imgs) // 2)
+    else:
+        raise ValueError(f"Unknown scenegraph type for realtime mode: {scenegraph_type}")
+    
+    pairs = make_pairs(imgs, scene_graph=scenegraph_type, prefilter=None, symmetrize=False)
+    output = inference(pairs, model, device, batch_size=args.batch_size, verbose=not silent)
+
+    save_folder = f'{args.output_dir}/{seq_name}'  #default is 'demo_tmp/NULL'
+    os.makedirs(save_folder, exist_ok=True)
+
+
+    view1, view2, pred1, pred2 = output['view1'], output['view2'], output['pred1'], output['pred2']
+    pts1 = pred1['pts3d'].detach().cpu().numpy()
+    pts2 = pred2['pts3d_in_other_view'].detach().cpu().numpy()
+    for batch_idx in range(len(view1['img'])):
+        colors1 = rgb(view1['img'][batch_idx])
+        colors2 = rgb(view2['img'][batch_idx])
+        xyzrgb1 = np.concatenate([pts1[batch_idx], colors1], axis=-1)   #(H, W, 6)
+        xyzrgb2 = np.concatenate([pts2[batch_idx], colors2], axis=-1)
+        np.save(save_folder + '/pts3d1_p' + str(batch_idx) + '.npy', xyzrgb1)
+        np.save(save_folder + '/pts3d2_p' + str(batch_idx) + '.npy', xyzrgb2)
+
+        conf1 = pred1['conf'][batch_idx].detach().cpu().numpy()
+        conf2 = pred2['conf'][batch_idx].detach().cpu().numpy()
+        np.save(save_folder + '/conf1_p' + str(batch_idx) + '.npy', conf1)
+        np.save(save_folder + '/conf2_p' + str(batch_idx) + '.npy', conf2)
+
+        # save the imgs of two views
+        img1_rgb = cv2.cvtColor(colors1 * 255, cv2.COLOR_BGR2RGB)
+        img2_rgb = cv2.cvtColor(colors2 * 255, cv2.COLOR_BGR2RGB)
+        cv2.imwrite(save_folder + '/img1_p' + str(batch_idx) + '.png', img1_rgb)
+        cv2.imwrite(save_folder + '/img2_p' + str(batch_idx) + '.png', img2_rgb)
+
+    return save_folder
 
 
 def main_demo(tmpdirname, model, device, image_size, server_name, server_port, silent=False, args=None):
@@ -333,35 +385,46 @@ if __name__ == '__main__':
             input_files = [os.path.join(args.input_dir, fname) for fname in sorted(os.listdir(args.input_dir))]
         else:   # input_dir is a video
             input_files = [args.input_dir]
-        recon_fun = functools.partial(get_reconstructed_scene, args, tmpdirname, model, args.device, args.silent, args.image_size)
-        
-        # Call the function with default parameters
-        scene, outfile, imgs = recon_fun(
-            filelist=input_files,
-            schedule='linear',
-            niter=300,
-            min_conf_thr=1.1,
-            as_pointcloud=True,
-            mask_sky=False,
-            clean_depth=True,
-            transparent_cams=False,
-            cam_size=0.05,
-            show_cam=True,
-            scenegraph_type='swinstride',
-            winsize=5,
-            refid=0,
-            seq_name=args.seq_name,
-            new_model_weights=args.weights,
-            temporal_smoothing_weight=0.01,
-            translation_weight='1.0',
-            shared_focal=True,
-            flow_loss_weight=0.01,
-            flow_loss_start_iter=0.1,
-            flow_loss_threshold=25,
-            use_gt_mask=args.use_gt_davis_masks,
-            fps=args.fps,
-            num_frames=args.num_frames,
-        )
+
+        if args.real_time:
+            recon_fun = functools.partial(get_reconstructed_scene_realtime, args, model, args.device, args.silent, args.image_size)
+            outfile = recon_fun(
+                filelist=input_files,
+                scenegraph_type='oneref_mid',
+                refid=0,
+                seq_name=args.seq_name,
+                fps=args.fps,
+                num_frames=args.num_frames,
+            )
+        else:
+            recon_fun = functools.partial(get_reconstructed_scene, args, tmpdirname, model, args.device, args.silent, args.image_size)
+            # Call the function with default parameters
+            scene, outfile, imgs = recon_fun(
+                filelist=input_files,
+                schedule='linear',
+                niter=300,
+                min_conf_thr=1.1,
+                as_pointcloud=True,
+                mask_sky=False,
+                clean_depth=True,
+                transparent_cams=False,
+                cam_size=0.05,
+                show_cam=True,
+                scenegraph_type='swinstride',
+                winsize=5,
+                refid=0,
+                seq_name=args.seq_name,
+                new_model_weights=args.weights,
+                temporal_smoothing_weight=0.01,
+                translation_weight='1.0',
+                shared_focal=True,
+                flow_loss_weight=0.01,
+                flow_loss_start_iter=0.1,
+                flow_loss_threshold=25,
+                use_gt_mask=args.use_gt_davis_masks,
+                fps=args.fps,
+                num_frames=args.num_frames,
+            )
         print(f"Processing completed. Output saved in {tmpdirname}/{args.seq_name}")
     else:
         # Launch Gradio demo
