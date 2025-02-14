@@ -160,7 +160,7 @@ class PointOdysseyDUSt3R(BaseStereoViewDataset):
         annotations_path = self.annotation_paths[index]
         annotations = np.load(annotations_path, allow_pickle=True)
         pix_T_cams = annotations['intrinsics'][full_idx].astype(np.float32)
-        cams_T_world = annotations['extrinsics'][full_idx].astype(np.float32)
+        world_T_cams = annotations['extrinsics'][full_idx].astype(np.float32)
 
         views = []
         for i in range(2):
@@ -170,10 +170,10 @@ class PointOdysseyDUSt3R(BaseStereoViewDataset):
             normalpath = normal_paths[i]
 
             # load camera params
-            extrinsics = cams_T_world[i]
+            extrinsics = world_T_cams[i]
             R = extrinsics[:3,:3]
             t = extrinsics[:3,3]
-            camera_pose = np.eye(4, dtype=np.float32)
+            camera_pose = np.eye(4, dtype=np.float32) # cam_2_world
             camera_pose[:3,:3] = R.T
             camera_pose[:3,3] = -R.T @ t
             intrinsics = pix_T_cams[i]
