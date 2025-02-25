@@ -185,7 +185,7 @@ def train(args):
     print('Building train dataset {:s}'.format(args.train_dataset))
     #  dataset and loader
     data_loader_train = build_dataset(args.train_dataset, args.batch_size, args.num_workers, test=False)
-    print('Building test dataset {:s}'.format(args.train_dataset))
+    print('Building test dataset {:s}'.format(args.test_dataset))
     data_loader_test = {}
     for dataset in args.test_dataset.split('+'):
         testset = build_dataset(dataset, args.batch_size, args.num_workers, test=True)
