@@ -16,6 +16,8 @@ import glob
 import imageio
 import matplotlib.pyplot as plt
 
+from pathlib import Path
+
 try:
     from pillow_heif import register_heif_opener  # noqa
     register_heif_opener()
@@ -142,7 +144,7 @@ def crop_img(img, size, square_ok=False, nearest=False, crop=True):
             img = img.resize((2*halfw, 2*halfh), PIL.Image.LANCZOS)
     return img
 
-def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mask_root=None, crop=True, fps=0, num_frames=110):
+def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mask_root=None, crop=True, fps=0, num_frames=110, imgs=[]):
     """Open and convert all images or videos in a list or folder to proper input format for DUSt3R."""
     if isinstance(folder_or_list, str):
         if verbose:
@@ -168,7 +170,6 @@ def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mas
     supported_images_extensions = tuple(supported_images_extensions)
     supported_video_extensions = tuple(supported_video_extensions)
 
-    imgs = []
     # Sort items by their names
     folder_content = sorted(folder_content, key=lambda x: x.split('/')[-1])
     for path in folder_content:
@@ -272,6 +273,54 @@ def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mas
     if verbose:
         print(f' (Found {len(imgs)} images)')
     return imgs
+
+def load_prev_video_results(prev_output_dir, num_frames, index=None):
+    print(f'>> Loading previous video results (rgb, depth, etc.) from {prev_output_dir}')
+    prev_output_dir = Path(prev_output_dir)
+
+    if index is None:
+        end_index = sum(1 for _ in prev_output_dir.glob("frame_*.png"))
+    else:
+        end_index = index
+
+    start_index = end_index - num_frames
+    
+    rgb_paths = sorted(prev_output_dir.glob("frame_*.png"), key=lambda p: int(p.stem.split("_")[-1]))[start_index:end_index]
+    depth_paths = sorted(prev_output_dir.glob("frame_*.npy"), key=lambda p: int(p.stem.split("_")[-1]))[start_index:end_index]
+    
+    intrinsics = np.loadtxt(prev_output_dir / "pred_intrinsics.txt")[start_index:end_index].astype(np.float32)
+    poses = np.loadtxt(prev_output_dir / "pred_traj.txt")[start_index:end_index].astype(np.float32)
+
+    assert np.all(intrinsics == intrinsics[0]), "only support same camera intrinsic"
+
+    intrinsics = torch.from_numpy(intrinsics[0].reshape(3, 3))
+    poses = torch.from_numpy(poses[:, 1:]) # skip index
+    poses = [poses[i] for i in range(len(poses))]
+    
+    # load rgb
+    imgs = []
+    for path in rgb_paths:
+        img = exif_transpose(PIL.Image.open(path)).convert('RGB')
+        single_dict = dict(
+                img=ImgNorm(img)[None],
+                true_shape=np.int32([img.size[::-1]]),
+                idx=len(imgs),
+                instance=str(path),
+                mask=~(ToTensor(img)[None].sum(1) <= 0.01)
+        )
+        single_dict['dynamic_mask'] = torch.zeros_like(single_dict['mask'])
+        imgs.append(single_dict)
+
+    # load depth
+    depths = []
+    for path in depth_paths:
+        depth = np.load(path)
+        depths.append(depth)
+
+    depths = torch.from_numpy(np.array(depths).astype(np.float32))
+
+    prev_video_results = {'imgs': imgs, 'depths': depths, 'intrinsics': intrinsics, 'poses': poses}
+    return prev_video_results
 
 def enlarge_seg_masks(folder, kernel_size=5, prefix="dynamic_mask"):
     mask_pathes = glob.glob(f'{folder}/{prefix}_*.png')

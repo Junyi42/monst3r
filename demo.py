@@ -15,7 +15,7 @@ import copy
 from dust3r.inference import inference
 from dust3r.model import AsymmetricCroCo3DStereo
 from dust3r.image_pairs import make_pairs
-from dust3r.utils.image import load_images, rgb, enlarge_seg_masks
+from dust3r.utils.image import load_images, load_prev_video_results, rgb, enlarge_seg_masks
 from dust3r.utils.device import to_numpy
 from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
 from dust3r.utils.viz_demo import convert_scene_output_to_glb, get_dynamic_mask_from_pairviewer
@@ -40,6 +40,8 @@ def get_args_parser():
     parser.add_argument("--model_name", type=str, default='Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt', help="model name")
     parser.add_argument("--device", type=str, default='cuda', help="pytorch device")
     parser.add_argument("--output_dir", type=str, default='./demo_tmp', help="value for tempfile.tempdir")
+    parser.add_argument("--prev_output_dir", type=str, default=None, help="previous output dir")
+    parser.add_argument("--prev_output_index", type=int, default=None, help="previous output video index")
     parser.add_argument("--silent", action='store_true', default=False,
                         help="silence logs")
     parser.add_argument("--input_dir", type=str, help="Path to input images directory", default=None)
@@ -47,6 +49,9 @@ def get_args_parser():
     parser.add_argument('--use_gt_davis_masks', action='store_true', default=False, help='Use ground truth masks for DAVIS')
     parser.add_argument('--not_batchify', action='store_true', default=False, help='Use non batchify mode for global optimization')
     parser.add_argument('--real_time', action='store_true', default=False, help='Realtime mode')
+    parser.add_argument('--window_wise', action='store_true', default=False, help='Use window wise mode for optimization')
+    parser.add_argument('--window_size', type=int, default=100, help='Window size')
+    parser.add_argument('--window_overlap_ratio', type=float, default=0.5, help='Window overlap ratio')
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size for inference')
 
     parser.add_argument('--fps', type=int, default=0, help='FPS for video processing')
@@ -102,7 +107,15 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
         dynamic_mask_path = f'data/davis/DAVIS/masked_images/480p/{seq_name}'
     else:
         dynamic_mask_path = None
-    imgs = load_images(filelist, size=image_size, verbose=not silent, dynamic_mask_root=dynamic_mask_path, fps=fps, num_frames=num_frames)
+
+    if args.window_wise and args.prev_output_dir is not None:
+        prev_num_frames = int(args.window_size * args.window_overlap_ratio)
+        prev_video_results = load_prev_video_results(args.prev_output_dir, num_frames=prev_num_frames, index=args.prev_output_index)
+        imgs = load_images(filelist, size=image_size, verbose=not silent, dynamic_mask_root=dynamic_mask_path, fps=fps, num_frames=num_frames, imgs=prev_video_results['imgs'])
+    else:
+        prev_video_results = None
+        imgs = load_images(filelist, size=image_size, verbose=not silent, dynamic_mask_root=dynamic_mask_path, fps=fps, num_frames=num_frames)
+        
     if len(imgs) == 1:
         imgs = [imgs[0], copy.deepcopy(imgs[0])]
         imgs[1]['idx'] = 1
@@ -113,19 +126,28 @@ def get_reconstructed_scene(args, outdir, model, device, silent, image_size, fil
 
     pairs = make_pairs(imgs, scene_graph=scenegraph_type, prefilter=None, symmetrize=True)
     output = inference(pairs, model, device, batch_size=args.batch_size, verbose=not silent)
+    # TODO YYJ del model
     if len(imgs) > 2:
-        mode = GlobalAlignerMode.PointCloudOptimizer  
+        mode = GlobalAlignerMode.PointCloudOptimizer
         scene = global_aligner(output, device=device, mode=mode, verbose=not silent, shared_focal = shared_focal, temporal_smoothing_weight=temporal_smoothing_weight, translation_weight=translation_weight,
                                flow_loss_weight=flow_loss_weight, flow_loss_start_epoch=flow_loss_start_iter, flow_loss_thre=flow_loss_threshold, use_self_mask=not use_gt_mask,
-                               num_total_iter=niter, empty_cache= len(filelist) > 72, batchify=not args.not_batchify)
+                               num_total_iter=niter, empty_cache= len(filelist) > 72, batchify=not (args.not_batchify or args.window_wise),
+                               window_wise=args.window_wise, window_size=args.window_size, window_overlap_ratio=args.window_overlap_ratio,
+                               prev_video_results=prev_video_results)
     else:
         mode = GlobalAlignerMode.PairViewer
         scene = global_aligner(output, device=device, mode=mode, verbose=not silent)
     lr = 0.01
 
     if mode == GlobalAlignerMode.PointCloudOptimizer:
-        loss = scene.compute_global_alignment(init='mst', niter=niter, schedule=schedule, lr=lr)
+        if args.window_wise:
+            scene.compute_window_wise_alignment(init='mst', niter=niter, schedule=schedule, lr=lr)
+        else:
+            scene.compute_global_alignment(init='mst', niter=niter, schedule=schedule, lr=lr)
 
+    if args.window_wise and args.prev_output_dir is not None:
+        scene.clean_prev_results()
+        
     save_folder = f'{args.output_dir}/{seq_name}'  #default is 'demo_tmp/NULL'
     os.makedirs(save_folder, exist_ok=True)
     outfile = get_3D_model_from_scene(save_folder, silent, scene, min_conf_thr, as_pointcloud, mask_sky,
