@@ -94,6 +94,8 @@ python demo.py --input demo_data/lady-running --output_dir demo_tmp --seq_name l
 # use video as input: --input demo_data/lady-running.mp4 --num_frames 65
 # (update 12/15) use memory efficient optimization: --not_batchify
 # (update 1/20) use real-time mode: --real_time
+# (update 3/5) use window_wise mode: --window_wise --window_size 100 --window_overlap_ratio 0.5
+# optimize current video segment based on previous segment result by specifying: --prev_output_dir ./demo_tmp/lady-running
 ```
 
 > Currently, it takes about 33G VRAM to run the inference code on a 16:9 video of 65 frames. Use less frames or disable the `flow_loss` could reduce the memory usage. We are **welcome to any PRs** to improve the memory efficiency (one reasonable way is to implement window-wise optimzation in `optimizer.py`).
@@ -101,6 +103,8 @@ python demo.py --input demo_data/lady-running --output_dir demo_tmp --seq_name l
 > **Update (12/15):** Using the non-batchified version of the global optimization, the memory usage has been reduced. Now, it only requires ~23G VRAM to inference on a 65-frames 16:9 video. It is now slower, but we are **welcome to any PRs** to improve the memory-speed trade-off, e.g., using a window-wise optimization in function `forward_non_batchify()` instead of edge-wise.
 
 > **Update (1/20):** We have added a fully feed-forward mode for the inference code, which can run in real-time. The results are worse than the global optimization mode, and it only applies to cases where the camera motion is small. More details will be updated soon.
+
+> **Update (3/5):** [YunjieYu](https://github.com/YunjieYu) have added a window-wise mode for the inference code, which improve the memory-speed trade-off. Now one can directly optimize a long video with a larger number of frames, and obtain expected results. More details will be updated soon. Thanks [@YunjieYu](https://github.com/YunjieYu).
 
 ### Visualization
 

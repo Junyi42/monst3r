@@ -102,6 +102,21 @@ def init_minimum_spanning_tree(self, save_score_path=None, save_score_only=False
 
     return init_from_pts3d(self, pts3d, im_focals, im_poses)
 
+@torch.no_grad()
+def init_from_previous_result(self, **kw):
+    """ Init pts3d, im_poses given a set of previous estimations.
+    """
+    device = self.device
+    prev_pts3d = self.depth_to_pts3d_partial()[:self.n_prev_frames]
+    prev_im_poses = self.get_im_poses_non_batch()[:self.n_prev_frames]
+    im_focals = self.get_focals().squeeze().tolist()
+    pts3d, im_poses = init_pts3d_poses_from_previous_result(prev_pts3d, prev_im_poses, im_focals, self.imshapes, self.edges,
+                                                         self.pred_i, self.pred_j, self.conf_i, self.conf_j, self.im_conf, self.min_conf_thr,
+                                                         device, verbose=self.verbose,
+                                                         **kw)
+    
+    return init_from_previous_pts3d(self, pts3d, im_focals, im_poses)
+
 
 def init_from_pts3d(self, pts3d, im_focals, im_poses):
     # init poses
@@ -148,9 +163,43 @@ def init_from_pts3d(self, pts3d, im_focals, im_poses):
         if self.n_imgs > 2:
             self._set_init_depthmap()
 
-    if self.verbose:
-        with torch.no_grad():
-            print(' init loss =', float(self()))
+    # if self.verbose:
+    #     with torch.no_grad():
+    #         print(' init loss =', float(self()))
+
+
+def init_from_previous_pts3d(self, pts3d, im_focals, im_poses):
+    # set all pairwise poses
+    for e, (i, j) in enumerate(self.edges):
+        i_j = edge_str(i, j)
+        # compute transform that goes from cam to world
+        s, R, T = rigid_points_registration(self.pred_i[i_j], pts3d[i], conf=self.conf_i[i_j])
+        self._set_pose(self.pw_poses, e, R, T, scale=s)
+
+    # take into account the scale normalization
+    s_factor = self.get_pw_norm_scale_factor()
+    im_poses[:, :3, 3] *= s_factor  # apply downscaling factor
+    for img_pts3d in pts3d:
+        img_pts3d *= s_factor
+
+    # init all image poses
+    if self.has_im_poses:
+        for i in range(self.n_imgs):
+            cam2world = im_poses[i]
+            depth = geotrf(inv(cam2world), pts3d[i])[..., 2]
+            self._set_depthmap(i, depth)
+            self._set_pose(self.im_poses, i, cam2world)
+            if im_focals[i] is not None:
+                if not self.shared_focal:
+                    self._set_focal(i, im_focals[i])
+        if self.shared_focal:
+            self._set_focal(0, sum(im_focals) / self.n_imgs)
+        if self.n_imgs > 2:
+            self._set_init_depthmap()
+
+    # if self.verbose:
+    #     with torch.no_grad():
+    #         print(' init loss =', float(self()))
 
 
 def minimum_spanning_tree(imshapes, edges, pred_i, pred_j, conf_i, conf_j, im_conf, min_conf_thr,
@@ -253,6 +302,60 @@ def minimum_spanning_tree(imshapes, edges, pred_i, pred_j, conf_i, conf_j, im_co
 
     return pts3d, msp_edges, im_focals, im_poses
 
+
+def init_pts3d_poses_from_previous_result(prev_pts3d, prev_im_poses, im_focals, imshapes, edges, pred_i, pred_j, conf_i, conf_j,
+                                       im_conf, min_conf_thr, device, niter_PnP=10, verbose=True):
+    n_imgs = len(imshapes)
+
+    # temp variable to store pts3d and im_poses
+    pts3d = [None] * n_imgs
+    im_poses = [None] * n_imgs
+    
+    assert len(prev_pts3d) == len(prev_im_poses)
+    n_prev_frames = len(prev_pts3d)
+
+    # init previous results
+    for i in range(n_prev_frames):
+        pts3d[i] = prev_pts3d[i]
+        im_poses[i] = prev_im_poses[i]
+    
+    edges = torch.tensor(edges, device=device)
+    # TODO default symmetrize=True, so we only consider half of edges
+    edges = edges[:len(edges)//2]
+    if verbose:
+        print(f'init pts3d...')
+    for j in range(n_prev_frames, n_imgs):
+        msk = (edges[:, 1] == j)
+        valid_i = edges[:, 0][msk]
+        cur_pts3d = []
+        cur_conf = []
+        for i in valid_i:
+            # align pred_i[i_j] with pts3d[i], and then set j accordingly
+            i_j = edge_str(i, j)
+            s, R, T = rigid_points_registration(pred_i[i_j], pts3d[i], conf=conf_i[i_j])
+            trf = sRT_to_4x4(s, R, T, device)
+            cur_pts3d.append(geotrf(trf, pred_j[i_j]))
+            cur_conf.append(conf_j[i_j])
+        cur_pts3d = torch.stack(cur_pts3d)
+        cur_conf = torch.stack(cur_conf)
+        cur_conf = (cur_conf / cur_conf.sum(dim=0, keepdim=True)).unsqueeze(-1)
+        cur_pts3d = (cur_pts3d * cur_conf).sum(dim=0)
+        pts3d[j] = cur_pts3d
+
+    if verbose:
+        print(f'init im_poses...')
+    for j in range(n_prev_frames, n_imgs):
+        msk = im_conf[j] > min_conf_thr
+        res = fast_pnp(pts3d[j], im_focals[j], msk=msk, device=device, niter_PnP=niter_PnP)
+        if res:
+            _, im_poses[j] = res
+        if im_poses[j] is None:
+            im_poses[j] = torch.eye(4, device=device)
+
+    im_poses = torch.stack(im_poses)
+    
+    return pts3d, im_poses
+            
 
 def dict_to_sparse_graph(dic):
     n_imgs = max(max(e) for e in dic) + 1

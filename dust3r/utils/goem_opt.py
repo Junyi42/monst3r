@@ -3,12 +3,13 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 import math
+import numpy as np
 from scipy.spatial.transform import Rotation
 
 def tum_to_pose_matrix(pose):
     # pose: [tx, ty, tz, qw, qx, qy, qz]
     assert pose.shape == (7,)
-    pose_xyzw = pose[[3, 4, 5, 6]]
+    pose_xyzw = pose[[4, 5, 6, 3]]
     r = Rotation.from_quat(pose_xyzw)
     return np.vstack([np.hstack([r.as_matrix(), pose[:3].reshape(-1, 1)]), [0, 0, 0, 1]])
 

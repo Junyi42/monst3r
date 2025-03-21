@@ -412,6 +412,21 @@ class BasePCOptimizer (nn.Module):
             raise ValueError(f'bad value for {init=}')
 
         return global_alignment_loop(self, **kw)
+    
+    @torch.cuda.amp.autocast(enabled=False)
+    def compute_window_wise_alignment(self, init=None, save_score_path=None, save_score_only=False, niter_PnP=10, **kw):
+        if init is None:
+            pass
+        elif self.prev_video_results is not None:
+            init_fun.init_from_previous_result(self)
+        elif init == 'msp' or init == 'mst':
+            init_fun.init_minimum_spanning_tree(self, save_score_path=save_score_path, save_score_only=save_score_only, niter_PnP=niter_PnP)
+            if save_score_only: # if only want the score map
+                return None
+        else:
+            raise ValueError(f'bad value for {init=}')
+
+        return window_wise_alignment_loop(self, **kw)
 
     @torch.no_grad()
     def mask_sky(self):
@@ -476,17 +491,60 @@ def global_alignment_loop(net, lr=0.01, niter=300, schedule='cosine', lr_min=1e-
                         depth_map_save_path = os.path.join(depth_map_save_dir, f'depthmaps_{i}_iter_{bar.n}.png')
                         plt.imsave(depth_map_save_path, depth_map.detach().cpu().numpy(), cmap='jet')
                     print(f"Saved depthmaps at iteration {bar.n} to {depth_map_save_dir}")
-                loss, lr = global_alignment_iter(net, bar.n, niter, lr_base, lr_min, optimizer, schedule, 
+                loss, flow_loss, lr = global_alignment_iter(net, bar.n, niter, lr_base, lr_min, optimizer, schedule, 
                                                  temporal_smoothing_weight=temporal_smoothing_weight)
-                bar.set_postfix_str(f'{lr=:g} loss={loss:g}')
+                bar.set_postfix_str(f'{lr=:g} loss={loss:g} flow_loss={flow_loss:g}')
                 bar.update()
     else:
         for n in range(niter):
-            loss, _ = global_alignment_iter(net, n, niter, lr_base, lr_min, optimizer, schedule, 
+            loss, _, _ = global_alignment_iter(net, n, niter, lr_base, lr_min, optimizer, schedule, 
                                             temporal_smoothing_weight=temporal_smoothing_weight)
     return loss
 
-
+def window_wise_alignment_loop(net, lr=0.01, niter=300, schedule='cosine', lr_min=1e-3, temporal_smoothing_weight=0, depth_map_save_dir=None):
+    net.im_depthmaps.requires_grad_(False)
+    net.im_poses.requires_grad_(False)
+    net.im_focals.requires_grad_(False)
+    verbose = net.verbose
+    lr_base = lr
+    for window_idx in range(net.num_windows):
+        net.load_window_params(window_idx)
+        # Create an optimizer (optimize only the trainable parameters of the current window)
+        params = []
+        names = []
+        for name, param in net.named_parameters():
+            if f'opt_' in name and param.requires_grad:
+                params.append(param)
+                names.append(name)
+        if verbose:
+            print(f'Window wise alignement - optimizing for window {window_idx}:')
+            print(names)
+            
+        optimizer = torch.optim.Adam(params, lr=lr_base, betas=(0.9, 0.9))
+        loss = float('inf')
+        if verbose:
+            with tqdm.tqdm(total=niter) as bar:
+                while bar.n < bar.total:
+                    if bar.n % 500 == 0 and depth_map_save_dir is not None:
+                        if not os.path.exists(depth_map_save_dir):
+                            os.makedirs(depth_map_save_dir)
+                        # visualize the depthmaps
+                        depth_maps = net.get_depthmaps()
+                        for i, depth_map in enumerate(depth_maps):
+                            depth_map_save_path = os.path.join(depth_map_save_dir, f'depthmaps_{i}_iter_{bar.n}.png')
+                            plt.imsave(depth_map_save_path, depth_map.detach().cpu().numpy(), cmap='jet')
+                        print(f"Saved depthmaps at iteration {bar.n} to {depth_map_save_dir}")
+                    loss, flow_loss, lr = global_alignment_iter(net, bar.n, niter, lr_base, lr_min, optimizer, schedule, 
+                                                    temporal_smoothing_weight=temporal_smoothing_weight)
+                    bar.set_postfix_str(f'{lr=:g} loss={loss:g} flow_loss={flow_loss:g}')
+                    bar.update()
+        else:
+            for n in range(niter):
+                loss, _, _ = global_alignment_iter(net, n, niter, lr_base, lr_min, optimizer, schedule, 
+                                                temporal_smoothing_weight=temporal_smoothing_weight)
+        net.save_window_params(window_idx)
+    return loss
+        
 def global_alignment_iter(net, cur_iter, niter, lr_base, lr_min, optimizer, schedule, temporal_smoothing_weight=0):
     t = cur_iter / niter
     if schedule == 'cosine':
@@ -508,7 +566,7 @@ def global_alignment_iter(net, cur_iter, niter, lr_base, lr_min, optimizer, sche
     if net.empty_cache:
         torch.cuda.empty_cache()
     
-    loss = net(epoch=cur_iter)
+    loss, flow_loss = net(epoch=cur_iter)
     
     if net.empty_cache:
         torch.cuda.empty_cache()
@@ -520,9 +578,7 @@ def global_alignment_iter(net, cur_iter, niter, lr_base, lr_min, optimizer, sche
     
     optimizer.step()
     
-    return float(loss), lr
-
-
+    return float(loss), float(flow_loss), lr
 
 @torch.no_grad()
 def clean_pointcloud( im_confs, K, cams, depthmaps, all_pts3d, 
