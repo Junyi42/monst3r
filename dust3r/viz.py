@@ -154,7 +154,7 @@ class SceneViz:
         if isinstance(color, (list, np.ndarray, torch.Tensor)):
             color = to_numpy(color)
             col = np.concatenate([p[m] for p,m in zip(color,mask)])
-            assert col.shape == pts.shape, bb()
+            assert col.shape == pts.shape
             pct.visual.vertex_colors = uint8(col.reshape(-1,3))
         else:
             assert len(color) == 3
