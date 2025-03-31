@@ -14,6 +14,7 @@ tmp.json
 tmp*
 avg_error
 *.gif
+*.mp4
 .vscode
 .gradio
 pyrightconfig.json
