@@ -989,7 +989,7 @@ class PointCloudOptimizer(BasePCOptimizer):
                 )
             loss += self.depth_regularize_weight * depth_prior_loss
 
-        return loss
+        return loss, flow_loss
 
     def forward(self, epoch=9999):
         if self.batchify:
