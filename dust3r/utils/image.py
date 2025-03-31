@@ -144,8 +144,10 @@ def crop_img(img, size, square_ok=False, nearest=False, crop=True):
             img = img.resize((2*halfw, 2*halfh), PIL.Image.LANCZOS)
     return img
 
-def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mask_root=None, crop=True, fps=0, num_frames=110, imgs=[]):
+def load_images(folder_or_list, size, square_ok=False, verbose=True, dynamic_mask_root=None, crop=True, fps=0, num_frames=110, imgs=None):
     """Open and convert all images or videos in a list or folder to proper input format for DUSt3R."""
+    if imgs is None:
+        imgs = []
     if isinstance(folder_or_list, str):
         if verbose:
             print(f'>> Loading images from {folder_or_list}')
