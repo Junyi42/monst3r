@@ -36,7 +36,7 @@ class PointCloudOptimizer(BasePCOptimizer):
     def __init__(self, *args, optimize_pp=False, focal_break=20, shared_focal=False, flow_loss_fn='smooth_l1', flow_loss_weight=0.0, 
                  depth_regularize_weight=0.0, num_total_iter=300, temporal_smoothing_weight=0, translation_weight=0.1, flow_loss_start_epoch=0.15, flow_loss_thre=50,
                  sintel_ckpt=False, use_self_mask=False, pxl_thre=50, sam2_mask_refine=True, motion_mask_thre=0.35, batchify=False,
-                 window_wise=True, window_size=100, window_overlap_ratio=0.5, prev_video_results=None, **kwargs):
+                 window_wise=False, window_size=100, window_overlap_ratio=0.5, prev_video_results=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.has_im_poses = True  # by definition of this class
